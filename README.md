@@ -19,6 +19,7 @@ deploy .ino files to gh from one computer and have them deployed to an arduino o
 * ```wget "http://playground.arduino.cc/uploads/Learning/arduino-core-0005.zip"```
 * ```unzip arduino-core-0005.zip```
 * ```mv arduino arduino-core```
+* ```rm arduino-core/Makefile```
 
 ---
 
