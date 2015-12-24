@@ -28,3 +28,6 @@ node_modules
 
 # Arduino core (don't want to get into licensing problems)
 arduino-core
+
+# temp
+info.txt

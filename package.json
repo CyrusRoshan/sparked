@@ -4,23 +4,23 @@
   "description": "deploy .ino files to gh from one computer and have them deployed to an arduino on another computer, with the results streamed back",
   "main": "sparked/sparked.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+	"test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
-    "type": "git",
-    "url": "git+https://github.com/CyrusRoshan/sparked.git"
+	"type": "git",
+	"url": "git+https://github.com/CyrusRoshan/sparked.git"
   },
   "keywords": [
-    "sparked",
-    "arduino",
-    "deploy",
-    "wireless",
-    "remote"
+	"sparked",
+	"arduino",
+	"deploy",
+	"wireless",
+	"remote"
   ],
-  "author": "Cyrus Roshan",
+  "author": "Cyrus Roshan <hello@cyrusroshan.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/CyrusRoshan/sparked/issues"
+	"url": "https://github.com/CyrusRoshan/sparked/issues"
   },
   "homepage": "https://github.com/CyrusRoshan/sparked#readme"
 }
