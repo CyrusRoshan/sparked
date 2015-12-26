@@ -12,52 +12,76 @@ Promise.promisifyAll(localtunnel);
 Promise.promisifyAll(serialPort);
 
 
-var listPorts = serialPort.listAsync().then(function(data){
-	console.log("a");
+serialPort.listAsync().then(function(data){
 	return data;
-});
+})
 
-var promptQuestions = listPorts.then(function(ports){
-	console.log(ports);
-	console.log(getQuestions(ports));
-	//console.log(listPorts.value());
-	/*inquirer.prompt(questions, function(answers){
-		if(getValue("slackAuth")){
-			var tunnel = localtunnel(port, function(err, tunnel){
+	.then(function(ports){
+	return new Promise(function(resolve){
+		inquirer.prompt(getQuestions(ports), function(answers){
+			resolve(answers);
+		});
+	});
+})
+
+	.then(function(answers){
+	var data = {
+		answers: answers
+	};
+	if(answers.slackLink){
+		console.log("\nConnecting to localtunnel, please wait...\n");
+		return new Promise(function(resolve){
+			var tunnel = localtunnel(answers.port, function(err, tunnel){
 				if(err){
-					console.error("Error connecting to localtunnel...")
+					console.error("Error connecting to localtunnel, exiting...")
+					process.exit(1);
 				}
-
 				else{
-					inquirer.prompt([
-						{
-							type: "input",
-							name: "token",
-							message: "Add a outgoing webhook in slack to send notifications to the URL: " + tunnel.url + " and set 'dosparked' as the trigger word. Then, enter the slack token for outgoing payload validation",
-							default: 8080,
-							validate: function( value ) {
-								return true;
-								if (String(value).length === 24) {
-									return true;
-								} else {
-									return "Please enter a valid token";
-								}
-							},
-							when: getValue("slackAuth")
-						}
-					], function(answersAfterSlack) {
-						answers += answersAfterSlack;
-						console.log( JSON.stringify(answers, null, "  ") );
-					});
+					data.tunnel = tunnel;
+					resolve(data);
 				}
 			});
-		}
-		else{
+		})
+	}
+	else{
+		console.log("c");
+		return data;
+	}
+})
 
-		}
-	})
-	*/
-});
+	.then(function(data){
+	console.log("d");
+	if(data.tunnel){
+		return new Promise(function(resolve){
+			inquirer.prompt([
+				{
+					type: "input",
+					name: "token",
+					message: "Add a outgoing webhook in slack to send notifications to the URL: " + tunnel.url + " and set 'dosparked' as the trigger word. Then, enter the slack token for outgoing payload validation",
+					default: 8080,
+					validate: function( value ) {
+						return true;
+						if (String(value).length === 24) {
+							return true;
+						} else {
+							return "Please enter a valid token";
+						}
+					},
+					when: getValue("slackLink")
+				}
+			], function(answers) {
+				data.answers.slackLink = answers;
+				resolve(data);
+			});
+		});
+	}
+})
+
+.then(function(data){
+	if(data.answers.slackLink){
+
+	}
+})
 
 /*
 
@@ -69,20 +93,21 @@ slack.send({
 });
 */
 
-
-function getValue(key) {
-	return function(answers){
-		return answers[key];
-	}
-}
-
 function getQuestions(ports){
+	var portNames = ports.map( port => port.comName);
+
+	function getValue(value){
+		return function(answers){
+			return answers[value];
+		}
+	}
+
 	return [
 		{
 			type: "list",
 			name: "port",
 			message: "Which serial port is the arduino connected to?",
-			choices: ports,
+			choices: portNames,
 		},
 		{
 			type: "list",
@@ -131,14 +156,14 @@ function getQuestions(ports){
 		},
 		{
 			type: "input",
-			name: "slackAuth",
+			name: "slackLink",
 			message: "If integrating with slack, please enter slack hook url",
 			validate: function(value) {
 				return true;
-				if (value.length === 77 || value.length === 0) {
+				if (value.match(/https:\/\/hooks\.slack\.com\/.{9}\/.{9}\/.{24}/g) || value.length == 0) {
 					return true;
 				} else {
-					return "Please enter a valid auth code";
+					return "Please enter a valid slack url, e.g. https://hooks.slack.com/services/AAAAAAAAA/BBBBBBBBB/CCCCCCCCCCCCCCCCCCCCCCCC";
 				}
 			}
 		},
@@ -154,7 +179,7 @@ function getQuestions(ports){
 					return "Please enter a valid channel/user, e.g. #channel or @user";
 				}
 			},
-			when: getValue("slackAuth")
+			when: getValue("slackLink")
 		},
 		{
 			type: "input",
@@ -169,7 +194,7 @@ function getQuestions(ports){
 					return "Please enter a valid port number, or leave blank to default to 8080";
 				}
 			},
-			when: getValue("slackAuth")
+			when: getValue("slackLink")
 		}
 	]
 };
