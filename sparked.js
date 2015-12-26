@@ -5,18 +5,22 @@ var inquirer = require("inquirer");
 var Slack = require('node-slack');
 var localtunnel = require('localtunnel');
 var serialPort = require("serialport");
+var koa = require('koa');
 
 Promise.promisifyAll(inquirer);
 Promise.promisifyAll(Slack);
 Promise.promisifyAll(localtunnel);
 Promise.promisifyAll(serialPort);
+Promise.promisifyAll(koa);
+
+var app = koa();
 
 
 serialPort.listAsync().then(function(data){
 	return data;
 })
 
-	.then(function(ports){
+.then(function(ports){
 	return new Promise(function(resolve){
 		inquirer.prompt(getQuestions(ports), function(answers){
 			resolve(answers);
@@ -24,7 +28,7 @@ serialPort.listAsync().then(function(data){
 	});
 })
 
-	.then(function(answers){
+.then(function(answers){
 	var data = {
 		answers: answers
 	};
@@ -44,21 +48,18 @@ serialPort.listAsync().then(function(data){
 		})
 	}
 	else{
-		console.log("c");
 		return data;
 	}
 })
 
-	.then(function(data){
-	console.log("d");
+.then(function(data){
 	if(data.tunnel){
 		return new Promise(function(resolve){
 			inquirer.prompt([
 				{
 					type: "input",
-					name: "token",
-					message: "Add a outgoing webhook in slack to send notifications to the URL: " + tunnel.url + " and set 'dosparked' as the trigger word. Then, enter the slack token for outgoing payload validation",
-					default: 8080,
+					name: "slackToken",
+					message: "Add a outgoing webhook in slack to send notifications to the URL: " + data.tunnel.url + " and set 'dosparked' as the trigger word. Then, enter the token slack has given for the recieved data to be validated",
 					validate: function( value ) {
 						return true;
 						if (String(value).length === 24) {
@@ -66,11 +67,10 @@ serialPort.listAsync().then(function(data){
 						} else {
 							return "Please enter a valid token";
 						}
-					},
-					when: getValue("slackLink")
+					}
 				}
 			], function(answers) {
-				data.answers.slackLink = answers;
+				data.answers.slackToken = answers;
 				resolve(data);
 			});
 		});
@@ -78,7 +78,8 @@ serialPort.listAsync().then(function(data){
 })
 
 .then(function(data){
-	if(data.answers.slackLink){
+	if(data.answers.slackToken){
+		console.log("\nSetting up server on port " + data.answers.port + ", which is forwarded to the URL " + data.tunnel.url + ", which is sent messages by slack, which are verified with the token " + data.answers.slackToken + "...\n");
 
 	}
 })
@@ -92,6 +93,8 @@ slack.send({
 	icon_emoji: ':electric_plug:',
 });
 */
+
+
 
 function getQuestions(ports){
 	var portNames = ports.map( port => port.comName);
