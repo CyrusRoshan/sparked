@@ -1,26 +1,32 @@
 {
-  "name": "sparked",
-  "version": "0.0.1",
-  "description": "deploy .ino files to gh from one computer and have them deployed to an arduino on another computer, with the results streamed back",
-  "main": "sparked/sparked.js",
-  "scripts": {
-	"test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-	"type": "git",
-	"url": "git+https://github.com/CyrusRoshan/sparked.git"
-  },
-  "keywords": [
-	"sparked",
-	"arduino",
-	"deploy",
-	"wireless",
-	"remote"
-  ],
-  "author": "Cyrus Roshan <hello@cyrusroshan.com>",
-  "license": "MIT",
-  "bugs": {
-	"url": "https://github.com/CyrusRoshan/sparked/issues"
-  },
-  "homepage": "https://github.com/CyrusRoshan/sparked#readme"
+    "name": "sparked",
+    "version": "0.0.1",
+    "description": "deploy .ino files to gh from one computer and have them deployed to an arduino on another computer, with the results streamed back",
+    "main": "sparked/sparked.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/CyrusRoshan/sparked.git"
+    },
+    "keywords": [
+        "sparked",
+        "arduino",
+        "deploy",
+        "wireless",
+        "remote"
+    ],
+    "author": "Cyrus Roshan <hello@cyrusroshan.com> (http://cyrusroshan.com)",
+    "license": "MIT",
+    "bugs": {
+        "url": "https://github.com/CyrusRoshan/sparked/issues"
+    },
+    "homepage": "https://github.com/CyrusRoshan/sparked#readme",
+    "dependencies": {
+        "botkit": "0.0.4 - 1.0.0",
+        "bluebird": "3.1.1 - 4.0.0",
+        "serialport": "2.0.5 - 3.0.0",
+        "inquirer": "0.11.0 - 1.0.0"
+    }
 }
