@@ -4,10 +4,20 @@ var Promise = require('bluebird');
 var inquirer = require('inquirer');
 var Botkit = require('botkit');
 var serialPort = require('serialport');
+var SerialPort = serialPort.SerialPort;
+var http = require('http');
+var https = require('https');
+var fs = require('fs');
+var exec = require('child_process').exec;
 
 Promise.promisifyAll(inquirer);
 Promise.promisifyAll(Botkit);
 Promise.promisifyAll(serialPort);
+Promise.promisifyAll(SerialPort);
+Promise.promisifyAll(http);
+Promise.promisifyAll(https);
+Promise.promisifyAll(fs);
+Promise.promisifyAll(exec);
 
 
 serialPort.listAsync().then(ports => ports)
@@ -23,6 +33,8 @@ serialPort.listAsync().then(ports => ports)
     var data = {
         answers: answers
     };
+
+
     if (answers.slackToken) {
         return new Promise(resolve => {
 
@@ -46,6 +58,10 @@ serialPort.listAsync().then(ports => ports)
             resolve(data);
         });
     }
+    data.serialPort = new SerialPort(data.answers.port, {
+        baudrate: data.answers.baud
+    }, false);
+
     return data;
 })
 
@@ -98,7 +114,8 @@ serialPort.listAsync().then(ports => ports)
 
         data.sparkedbot.hears(['refetch', 'reupload', 'upload', 'update'], 'direct_message,direct_mention', (bot, message) => {
             bot.reply(message, 'Refetching and uploading "' + data.answers.filepath + '"');
-            //upload(data);
+            data.forcedUpdate = true;
+            upload(data);
         });
 
         data.sparkedbot.hears(['baud', 'rebaud'], 'direct_message,direct_mention', (bot, message) => {
@@ -211,6 +228,44 @@ serialPort.listAsync().then(ports => ports)
 
 })
 
+function upload(data) {
+    new Promise(resolve => {
+        if (data.forcedUpdate) {
+            data.serialPort = new SerialPort(data.answers.port, {
+                baudrate: data.answers.baud
+            }, false);
+            data.forcedUpdate = false;
+        }
+        resolve();
+    })
+        .then(() => {
+        return new Promise(resolve => {
+            https.get(data.answers.filepath, res => {
+                res.on('data', fileData => {
+                    resolve(fileData);
+                });
+            });
+        });
+    })
+        .then(fileData => {
+        return new Promise(resolve => {
+            fileData = fileData.toString('utf8');
+            fs.writeFile(__dirname + 'downloadedFile.ino', fileData, function(err) {
+                if(err) {
+                    return console.log(err);
+                }
+
+                resolve();
+            });
+        });
+    })
+        .then(() => {
+        var cmd = 'cat ' + __dirname + 'downloadedFile.ino';
+        exec(cmd, function(error, stdout, stderr) {
+            //console.log(stdout);
+        });
+    })
+}
 
 
 function getQuestions(ports) {
