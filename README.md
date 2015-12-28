@@ -14,14 +14,15 @@ sparked is a remote push-to-deploy system for arduino
 ##Slack Integration:
 sparked can send serial output to slack. Type these commands in slack to interact with sparked. Type these commands alone if you're direct messaging the bot, but prefix these commands with an @[bot's name] if in a channel.
 * ```help``` to display all of these commands
+* ```example``` to display examples for all of these commands
 * ```status``` to output current sparked status
 * ```refetch, reupload, upload,``` or ```update``` to manually fetch the file, upload it to the arduino and restart. Also should be used to update after baud and port changes have been finalized, otherwise they will come into play after the next update to and subsequent download from repo. If file cannot be downloaded, sparked will ask if it should use the previously downloaded version instead.
 * ```baud [new baud rate]``` to change baud rate
 * ```list, ports,``` or ```list ports``` to list serial devices
-* ```change port [serialnumber]``` to change port to read serial output from and upload files to
-* ```change file [raw github file url]``` to switch to a new file url to monitor and upload
+* ```change port, change port,``` or ```switch port [device port name]``` to change the port to read serial output from and upload files to
+* ```change file``` or ```switch file [raw github file url]``` to switch to a new file url to monitor and upload
 * ```reauth [new github auth token]``` to switch github auth token
-* ```serialprint [message to send]``` to input a message into serial input
+* ```serialprint``` or ```serial print [message to send]``` to input a message into serial input
 * ```talk here``` to start outputting serial data in that channel/private message
 * ```stop talking``` to stop outputting serial data in that channel/private message
 * ```quit``` to quit dosparked
