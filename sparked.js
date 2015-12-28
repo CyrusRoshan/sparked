@@ -51,7 +51,16 @@ serialPort.listAsync().then(ports => ports)
 
     .then(data => {
     if (data.sparkedbot) {
-        data.sparkedbot.hears(['status', 'current'], 'direct_message, direct_mention, mention', (bot, message) => {
+
+        data.sparkedbot.hears(['help'], 'direct_message,direct_mention', (bot, message) => {
+            bot.reply(message,"Hello.");
+        });
+
+        data.sparkedbot.hears(['example'], 'direct_message,direct_mention', (bot, message) => {
+            bot.reply(message,"Hello.");
+        });
+
+        data.sparkedbot.hears(['status', 'current'], 'direct_message,direct_mention', (bot, message) => {
             var attachments = [];
             var attachment = {
                 title: 'Status:',
@@ -87,24 +96,25 @@ serialPort.listAsync().then(ports => ports)
             });
         });
 
-        data.sparkedbot.hears(['refetch', 'reupload', 'upload', 'update'], 'direct_message, direct_mention, mention', (bot, message) => {
-            bot.reply(message, 'Refetching and uploading ' + data.answers.filepath);
-            upload(data.answers.filepath);
+        data.sparkedbot.hears(['refetch', 'reupload', 'upload', 'update'], 'direct_message,direct_mention', (bot, message) => {
+            bot.reply(message, 'Refetching and uploading "' + data.answers.filepath + '"');
+            //upload(data);
         });
 
-        data.sparkedbot.hears(['baud', 'rebaud'], 'direct_message, direct_mention, mention', (bot, message) => {
-            var baud = message.text.split(' ')[1];
+        data.sparkedbot.hears(['baud', 'rebaud'], 'direct_message,direct_mention', (bot, message) => {
+            var baud = message.text.trim().slice(message.text.indexOf('baud') + 5);
             var baudrates = getQuestions()[1].choices;
 
             if (baudrates.indexOf(baud) != -1) {
-                bot.reply(message, 'Setting baud rate to ' + baud + '. Use "update" to finalize changes to settings');
                 data.answers.baud = baud;
+                bot.reply(message, 'Setting baud rate to ' + baud + '. Use "update" to finalize changes to settings');
             } else {
                 bot.reply(message, baud + ' is an invalid baud rate, the following baud rates are supported:');
                 bot.reply(message, baudrates.join(', '));
             }
         });
-        data.sparkedbot.hears(['list', 'ports'], 'direct_message, direct_mention, mention', (bot, message) => {
+
+        data.sparkedbot.hears(['list', 'ports'], 'direct_message,direct_mention', (bot, message) => {
             serialPort.listAsync().then(ports => ports)
                 .then(ports => {
 
@@ -133,43 +143,65 @@ serialPort.listAsync().then(ports => ports)
                 });
             })
         });
-        data.sparkedbot.hears(['change device', 'change port', 'switch port'], 'direct_message, direct_mention, mention', (bot, message) => {
-            var desiredPort = message.text.split(' ')[1];
+
+        data.sparkedbot.hears(['change device', 'change port', 'switch port'], 'direct_message,direct_mention', (bot, message) => {
+            var desiredPort = message.text.trim().split(' ')[2];
             var found = false;
-            serialPort.listAsync().then(ports => ports)
-                .then(ports => {
-                for (port in ports) {
+            serialPort.listAsync().then(ports => {
+                ports.forEach( port => {
                     if(port.comName === desiredPort){
                         found = true;
-                        break;
                     }
-                };
+                });
                 if (found === false) {
-                    bot.reply(message, 'Sorry, but no serial port exists with the name ' + desiredPort);
+                    bot.reply(message, 'Sorry, but no serial port exists with the name "' + desiredPort + '"');
                 } else {
                     data.answers.port = desiredPort;
-                    bot.reply(message, desiredPort + ' is now the desired port. Use "update" to finalize changes to settings');
+                    bot.reply(message, 'The port "' + desiredPort + '" is now the desired port. Use "update" to finalize changes to settings');
                 }
             })
-            bot.reply(message,"Hello.");
         });
-        data.sparkedbot.hears(['change file'], 'direct_message, direct_mention, mention', (bot, message) => {
-            bot.reply(message,"Hello.");
+
+        data.sparkedbot.hears(['change file', 'switch file'], 'direct_message,direct_mention', (bot, message) => {
+            var filepath = message.text.trim().slice(12);
+            if (filepath.match(/https:\/\/raw\.githubusercontent\.com\/.*\.ino/g)){
+                data.answers.filepath = filepath;
+                bot.reply(message, 'Now watching the file ' + filepath);
+                bot.reply(message, 'Make sure to add or change the github auth token by dm\'ing me with reauth [token] if the file is in a private repo that requires new permissions')
+            } else {
+                bot.reply(message, 'Sorry, but the url "' + filepath + '" does not seem like a valid raw github-hosted .ino file');
+            }
         });
-        data.sparkedbot.hears(['reauth'], 'direct_message, direct_mention, mention', (bot, message) => {
-            bot.reply(message,"Hello.");
+
+        data.sparkedbot.hears(['reauth'], 'direct_message,direct_mention', (bot, message) => {
+            if (message.event === 'direct_mention') {
+                bot.reply(message, 'Well, if you\'re fine giving private repo privelage to everyone who can read this...');
+            }
+            var githubToken = message.text.trim().slice(7);
+            data.answers.githubToken = githubToken;
+            bot.reply(message, 'Setting GitHub auth token to "' + githubToken + '"');
+
         });
-        data.sparkedbot.hears(['serialprint'], 'direct_message, direct_mention, mention', (bot, message) => {
-            bot.reply(message,"Hello.");
+
+        data.sparkedbot.hears(['serialprint', 'serial print'], 'direct_message,direct_mention', (bot, message) => {
+            var serialData = message.text.slice(message.text.indexOf('print') + 6);
+            bot.reply(message, 'Sending the following over serial:');
+            bot.reply(message, '```' + serialData + '```');
+            //serialPrint(data, serialData);
         });
-        data.sparkedbot.hears(['talk here'], 'direct_message, direct_mention, mention', (bot, message) => {
-            bot.reply(message,"Hello.");
+
+        data.sparkedbot.hears(['talk here'], 'direct_message,direct_mention', (bot, message) => {
+            bot.reply(message, 'Hello.');
         });
-        data.sparkedbot.hears(['stop talking'], 'direct_message, direct_mention, mention', (bot, message) => {
-            bot.reply(message,"Hello.");
+
+        data.sparkedbot.hears(['stop talking'], 'direct_message,direct_mention', (bot, message) => {
+            bot.reply(message, 'Hello.');
         });
-        data.sparkedbot.hears(['quit'], 'direct_message, direct_mention, mention', (bot, message) => {
-            bot.reply(message,"Hello.");
+
+        data.sparkedbot.hears(['quit'], 'direct_message,direct_mention', (bot, message) => {
+            bot.reply(message, 'If you say so. Quitting the node process...');
+            console.log('\n\nThe quit command was executed from slack, quitting...\n\n')
+            process.exit(1);
         });
     }
     return data;
@@ -231,7 +263,7 @@ function getQuestions(ports) {
         },
         {
             type: 'input',
-            name: 'auth',
+            name: 'githubToken',
             message: 'If this is a private repo, please enter an auth code to view it',
             validate: value => {
                 return true;
