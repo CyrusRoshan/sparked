@@ -6,35 +6,31 @@ sparked is a remote push-to-deploy system for arduino
 ##Usage:
 1. Hook arduino up to slave computer
 * Install sparked on computer
-* Set up a slack bot (optional)
-* Run sparked, and tell it which file to pull, include auth token if needed. Also include slack bot info
+* Set up a slack bot for sparked (if integrating with slack, otherwise leave blank)
+* Run sparked, and tell it which file to pull, include auth token if needed (for private repos). Also include slack bot info if integrating with slack
 * Sparked will automatically download, build, verify, and deploy to arduino if the .ino file passes verification. If not, sparked will send an error through slack
-* While running, sparked will stream output from serial output to the slack channel
+* While running, sparked will stream output from serial output once the command ```start talking``` is used in a private message or in a channel that sparked's bot is in
 
 ##Slack Integration:
-sparked can send serial output to slack. Type these commands in slack to interact with sparked.
-* ```dosparked status``` to output current sparked status
-* ```dosparked reupload``` to reupload the file to the arduino and restart it
-* ```dosparked baud [new baud rate]``` to change baud rate
-* ```dosparked list``` to list serial devices
-* ```dosparked device [serialnumber]``` to change device to read serial output from and upload files to
-* ```dosparked changefile [raw github file url]``` to switch to a new file url to monitor and upload
-* ```dosparked reauth [new github auth token]``` to switch github auth token
-* ```dosparked serialprint [message to send]``` to input a message into serial input
-* ```dosparked movechat [channel or username to message]``` to move sparked output to another chat (sparked will still accept input across all channels)
-* ```dosparked mute``` to mute serial output and ```dosparked unmute``` to unmute serial output
-* ```dosparked quit``` to quit dosparked
+sparked can send serial output to slack. Type these commands in slack to interact with sparked. Type these commands alone if you're direct messaging the bot, but prefix these commands with an @[bot's name] if in a channel.
+* ```help``` to display all of these commands
+* ```status``` to output current sparked status
+* ```refetch, reupload, upload,``` or ```update``` to manually fetch the file, upload it to the arduino and restart. Also should be used to update after baud and port changes have been finalized, otherwise they will come into play after the next update to and subsequent download from repo. If file cannot be downloaded, sparked will ask if it should use the previously downloaded version instead.
+* ```baud [new baud rate]``` to change baud rate
+* ```list, ports,``` or ```list ports``` to list serial devices
+* ```change port [serialnumber]``` to change port to read serial output from and upload files to
+* ```change file [raw github file url]``` to switch to a new file url to monitor and upload
+* ```reauth [new github auth token]``` to switch github auth token
+* ```serialprint [message to send]``` to input a message into serial input
+* ```talk here``` to start outputting serial data in that channel/private message
+* ```stop talking``` to stop outputting serial data in that channel/private message
+* ```quit``` to quit dosparked
 
 ---
 
 ##Setup:
-1. ```git clone https://github.com/CyrusRoshan/sparked.git```
-* ```cd sparked```
-* ```wget "http://playground.arduino.cc/uploads/Learning/arduino-core-0005.zip"```
-* ```unzip arduino-core-0005.zip```
-* ```mv arduino arduino-core```
-* ```rm arduino-core/Makefile```
-
+* Install avrdude
+* ```npm install -g [package name]```
 ---
 
 ##License:
