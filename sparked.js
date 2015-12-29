@@ -34,6 +34,7 @@ serialPort.listAsync().then(ports => ports)
         answers: answers
     };
 
+
     if (data.answers.slackToken) {
         new Promise(resolve => {
 
@@ -59,10 +60,9 @@ serialPort.listAsync().then(ports => ports)
     }
     data.serialPort = new SerialPort(data.answers.port, {
         baudrate: data.answers.baud,
-        parser: serialPort.parsers.readline("\n")
+        parser: serialPort.parsers.readline('\n')
     }, true);
-    data.serialPort.on("open", () => {
-        console.log('\nTHE GATES ARE OPEN\n');
+    data.serialPort.on('open', () => {
         data.serialOpen = true;
     });
     return data;
@@ -72,11 +72,11 @@ serialPort.listAsync().then(ports => ports)
     if (data.sparkedbot) {
 
         data.sparkedbot.hears(['help'], ['direct_message', 'direct_mention'], (bot, message) => {
-            bot.reply(message,"Hello.");
+            bot.reply(message, 'Hello.');
         });
 
         data.sparkedbot.hears(['example'], ['direct_message', 'direct_mention'], (bot, message) => {
-            bot.reply(message,"Hello.");
+            bot.reply(message, 'Hello.');
         });
 
         data.sparkedbot.hears(['status', 'current'], ['direct_message', 'direct_mention'], (bot, message) => {
@@ -121,8 +121,8 @@ serialPort.listAsync().then(ports => ports)
             upload(data);
         });
 
-        data.sparkedbot.hears(['baud', 'rebaud'], ['direct_message', 'direct_mention'], (bot, message) => {
-            var baud = message.text.trim().slice(message.text.indexOf('baud') + 5);
+        data.sparkedbot.hears(['(.*)baud (.*)'], ['direct_message', 'direct_mention'], (bot, message) => {
+            var baud = message.match[2];
             var baudrates = getQuestions()[1].choices;
 
             if (baudrates.indexOf(baud) != -1) {
@@ -164,8 +164,8 @@ serialPort.listAsync().then(ports => ports)
             })
         });
 
-        data.sparkedbot.hears(['change device', 'change port', 'switch port'], ['direct_message', 'direct_mention'], (bot, message) => {
-            var desiredPort = message.text.trim().split(' ')[2];
+        data.sparkedbot.hears(['(.*)device (.*)', '(.*)port (.*)'], ['direct_message', 'direct_mention'], (bot, message) => {
+            var desiredPort = message.match[2];
             var found = false;
             serialPort.listAsync().then(ports => {
                 ports.forEach( port => {
@@ -182,8 +182,8 @@ serialPort.listAsync().then(ports => ports)
             })
         });
 
-        data.sparkedbot.hears(['change file', 'switch file'], ['direct_message', 'direct_mention'], (bot, message) => {
-            var filepath = message.text.trim().slice(12);
+        data.sparkedbot.hears(['(.*) file (.*)'], ['direct_message', 'direct_mention'], (bot, message) => {
+            var filepath = message.match[2];
             if (filepath.match(/https:\/\/raw\.githubusercontent\.com\/.*\.ino/g)){
                 data.answers.filepath = filepath;
                 bot.reply(message, 'Now watching the file ' + filepath);
@@ -193,20 +193,20 @@ serialPort.listAsync().then(ports => ports)
             }
         });
 
-        data.sparkedbot.hears(['reauth'], ['direct_message', 'direct_mention'], (bot, message) => {
+        data.sparkedbot.hears(['(.*)auth (.*)'], ['direct_message', 'direct_mention'], (bot, message) => {
             if (message.event === 'direct_mention') {
                 bot.reply(message, 'Well, if you\'re fine giving private repo privelage to everyone who can read this...');
             }
-            var githubToken = message.text.trim().slice(7);
+            var githubToken = message.match[2];
             data.answers.githubToken = githubToken;
             bot.reply(message, 'Setting GitHub auth token to "' + githubToken + '"');
 
         });
 
-        data.sparkedbot.hears(['serialprint', 'serial print'], ['direct_message', 'direct_mention'], (bot, message) => {
-            var serialData = message.text.slice(message.text.indexOf('print') + 6);
+        data.sparkedbot.hears(['(.*)print (.*)'], ['direct_message', 'direct_mention'], (bot, message) => {
+            var serialData = message.match[2];
             if (data.serialOpen) {
-                bot.reply(message, 'Sent the following line over serial: *' + serialData + '*');
+                bot.reply(message, 'Sent the following over serial: *' + serialData + '*');
                 data.serialPort.write(serialData);
             } else {
                 bot.reply(message, 'Sorry, the serial port has not opened yet. Data cannot be transferred until it is open');
@@ -214,27 +214,28 @@ serialPort.listAsync().then(ports => ports)
             }
         });
 
-        data.sparkedbot.hears(['talk here'], ['direct_message', 'direct_mention'], (bot, message) => {
-            bot.startConversation(message, (err,convo) => {
-                if (data.serialOpen) {
-                    convo.sayFirst('Ok, I\'ll write serial output here');
-                    data.serialPort.on("data", data => {
-                        convo.say(data);
-                        bot.reply(message, data);
-                        console.log(data);
-                    });
-                } else {
-                    convo.sayFirst('Sorry, the serial port has not opened yet. Data cannot be transferred until it is open');
-                    convo.say('Do you have another application accessing this port? For example, the Arduino IDE\'s serial monitor will interfere with accessing the serial port');
-                }
-            })
-        });
-
-        data.sparkedbot.hears(['stop talking'], ['direct_message', 'direct_mention'], (bot, message) => {
+        data.sparkedbot.hears(['(.*)here'], ['direct_message', 'direct_mention'], (bot, message) => {
             data.talk = true;
+            if (data.serialOpen) {
+                bot.reply(message, 'Ok, I\'ll write serial output here');
+                data.serialPort.on('data', serialData => {
+                    if (data.talk) {
+                        bot.reply(message, '*Serial Output:* ' + serialData);
+                        console.log(serialData);
+                    }
+                });
+            } else {
+                bot.reply(message, 'Sorry, the serial port has not opened yet. Data cannot be transferred until it is open');
+                bot.reply(message, 'Do you have another application accessing this port? For example, the Arduino IDE\'s serial monitor will interfere with accessing the serial port');
+            }
         });
 
-        data.sparkedbot.hears(['quit'], ['direct_message', 'direct_mention'], (bot, message) => {
+        data.sparkedbot.hears(['stop(.*)', 'shut up', '(.*)quiet'], ['direct_message', 'direct_mention'], (bot, message) => {
+            data.talk = false;
+            bot.reply(message, 'Ok. I\'ll stop writing serial output here.');
+        });
+
+        data.sparkedbot.hears(['quit', 'shut down'], ['direct_message', 'direct_mention'], (bot, message) => {
             bot.reply(message, 'If you say so. Quitting the node process...');
             console.log('\n\nThe quit command was executed from slack, quitting...\n\n')
             process.exit(1);
