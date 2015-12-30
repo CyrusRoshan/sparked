@@ -47,13 +47,22 @@ serialPort.listAsync().then(ports => ports)
                 log: true
             });
 
-            data.sparkedbot.spawn({
-                token: data.answers.slackToken,
-            }).startRTM(err => {
-                if (err) {
-                    throw new Error(err);
-                }
-            });
+            data.connect = function() {
+                data.sparkedbot.spawn({
+                    token: data.answers.slackToken,
+                }).startRTM(err => {
+                    if (err) {
+                        if (!data.reconnects) {
+                            data.reconnects = 1;
+                        } else if (data.reconnects < 3) {
+
+                        }
+                        console.log('Could not connect to slack, retrying (' + data.reconnects + ')');
+                    }
+                });
+            }
+
+            data.connect();
 
             resolve(data);
         });
@@ -121,8 +130,8 @@ serialPort.listAsync().then(ports => ports)
             upload(data);
         });
 
-        data.sparkedbot.hears(['(.*)baud (.*)'], ['direct_message', 'direct_mention'], (bot, message) => {
-            var baud = message.match[2];
+        data.sparkedbot.hears(['baud (.*)'], ['direct_message', 'direct_mention'], (bot, message) => {
+            var baud = message.match[1];
             var baudrates = getQuestions()[1].choices;
 
             if (baudrates.indexOf(baud) != -1) {
@@ -134,7 +143,7 @@ serialPort.listAsync().then(ports => ports)
             }
         });
 
-        data.sparkedbot.hears(['list', 'ports'], ['direct_message', 'direct_mention'], (bot, message) => {
+        data.sparkedbot.hears(['list'], ['direct_message', 'direct_mention'], (bot, message) => {
             serialPort.listAsync().then(ports => ports)
                 .then(ports => {
 
@@ -164,8 +173,8 @@ serialPort.listAsync().then(ports => ports)
             })
         });
 
-        data.sparkedbot.hears(['(.*)device (.*)', '(.*)port (.*)'], ['direct_message', 'direct_mention'], (bot, message) => {
-            var desiredPort = message.match[2];
+        data.sparkedbot.hears(['device (.*)', '(.*)port (.*)'], ['direct_message', 'direct_mention'], (bot, message) => {
+            var desiredPort = message.match[1];
             var found = false;
             serialPort.listAsync().then(ports => {
                 ports.forEach( port => {
@@ -182,8 +191,8 @@ serialPort.listAsync().then(ports => ports)
             })
         });
 
-        data.sparkedbot.hears(['(.*) file (.*)'], ['direct_message', 'direct_mention'], (bot, message) => {
-            var filepath = message.match[2];
+        data.sparkedbot.hears(['file (.*)'], ['direct_message', 'direct_mention'], (bot, message) => {
+            var filepath = message.match[1];
             if (filepath.match(/https:\/\/raw\.githubusercontent\.com\/.*\.ino/g)){
                 data.answers.filepath = filepath;
                 bot.reply(message, 'Now watching the file ' + filepath);
@@ -193,18 +202,19 @@ serialPort.listAsync().then(ports => ports)
             }
         });
 
-        data.sparkedbot.hears(['(.*)auth (.*)'], ['direct_message', 'direct_mention'], (bot, message) => {
+        data.sparkedbot.hears(['auth (.*)'], ['direct_message', 'direct_mention'], (bot, message) => {
             if (message.event === 'direct_mention') {
                 bot.reply(message, 'Well, if you\'re fine giving private repo privelage to everyone who can read this...');
             }
-            var githubToken = message.match[2];
+            var githubToken = message.match[1];
             data.answers.githubToken = githubToken;
             bot.reply(message, 'Setting GitHub auth token to "' + githubToken + '"');
 
         });
 
-        data.sparkedbot.hears(['(.*)print (.*)'], ['direct_message', 'direct_mention'], (bot, message) => {
-            var serialData = message.match[2];
+        data.sparkedbot.hears(['print (.*)', 'print\(\"(.*)\"\)'], ['direct_message', 'direct_mention'], (bot, message) => {
+            // using print\(([\'\"])(.*)\1\) leads to an octal literal error in strict mode, and arduino uses double quotes instead of single quotes for printing string literals anyway
+            var serialData = message.match[1];
             if (data.serialOpen) {
                 bot.reply(message, 'Sent the following over serial: *' + serialData + '*');
                 data.serialPort.write(serialData);
@@ -214,7 +224,7 @@ serialPort.listAsync().then(ports => ports)
             }
         });
 
-        data.sparkedbot.hears(['(.*)here'], ['direct_message', 'direct_mention'], (bot, message) => {
+        data.sparkedbot.hears(['start'], ['direct_message', 'direct_mention'], (bot, message) => {
             data.talk = true;
             if (data.serialOpen) {
                 bot.reply(message, 'Ok, I\'ll write serial output here');
@@ -230,7 +240,7 @@ serialPort.listAsync().then(ports => ports)
             }
         });
 
-        data.sparkedbot.hears(['stop(.*)', 'shut up', '(.*)quiet'], ['direct_message', 'direct_mention'], (bot, message) => {
+        data.sparkedbot.hears(['stop'], ['direct_message', 'direct_mention'], (bot, message) => {
             data.talk = false;
             bot.reply(message, 'Ok. I\'ll stop writing serial output here.');
         });
