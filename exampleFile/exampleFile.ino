@@ -1,28 +1,38 @@
+String inputWord = "";
+boolean wordComplete = false;
+int i = 0;
+
 void setup() {
     Serial.begin(9600);
-    pinMode(13, OUTPUT);
+    inputWord.reserve(200);
 }
 
 void loop() {
-    Serial.print("test");
-    Serial.println("LINE");
-    delay(500);
+    Serial.println(i++);
+    delay(100);
 }
+
 
 void serialEvent() {
     while (Serial.available()) {
+        int test;
+        char inChar = (char)Serial.read();
 
-        char ch = (char)Serial.read();
-
-        Serial.print(ch);
-        Serial.println(ch);
-
-        if (ch == '\n') {
-            Serial.print("Line detected");
-        } else if (ch == '1') {
-            digitalWrite(13, HIGH);
-        } else if (ch == '0') {
-            digitalWrite(13, LOW);
+        if (inChar == ' ' || inChar == '.') {
+            wordComplete = true;
+        } else {
+            inputWord += inChar;
         }
+    }
+    if (wordComplete) {
+        if (inputWord.equalsIgnoreCase("ON")) {
+            digitalWrite(13, HIGH);
+        } else if (inputWord.equalsIgnoreCase("OFF")) {
+            digitalWrite(13, LOW);
+        } else if (inputWord.equalsIgnoreCase("PRINT")) {
+            Serial.println(inputWord);
+        }
+        inputWord = "";
+        wordComplete = false;
     }
 }
