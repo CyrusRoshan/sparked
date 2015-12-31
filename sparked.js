@@ -1,5 +1,6 @@
 'use strict';
 var Promise = require('bluebird');
+Promise.longStackTraces();
 
 var inquirer = require('inquirer');
 var Botkit = require('botkit');
@@ -20,18 +21,18 @@ Promise.promisifyAll(fs);
 Promise.promisifyAll(exec);
 
 
-serialPort.listAsync().then(ports => ports)
-    .then(ports => {
+serialPort.listAsync()
+.then(ports => {
     return new Promise(resolve => {
         inquirer.prompt(getQuestions(ports), answers => {
             resolve(answers);
         });
     });
 })
-
-    .then(answers => {
+.then(answers => {
     var data = {
-        answers: answers
+        answers: answers,
+        forcedUpdate: false
     };
 
 
@@ -68,27 +69,27 @@ serialPort.listAsync().then(ports => ports)
         });
     }
     data.serialPort = new SerialPort(data.answers.port, {
-        baudrate: data.answers.baud,
+        baudrate: 9600,//data.answers.baud,
         parser: serialPort.parsers.readline('\n')
     }, true);
     data.serialPort.on('open', () => {
         data.serialOpen = true;
     });
+
     return data;
 })
-
-    .then(data => {
+.then(data => {
     if (data.sparkedbot) {
 
-        data.sparkedbot.hears(['help'], ['direct_message', 'direct_mention'], (bot, message) => {
+        data.sparkedbot.hears(['^help'], ['direct_message', 'direct_mention'], (bot, message) => {
             bot.reply(message, 'Hello.');
         });
 
-        data.sparkedbot.hears(['example'], ['direct_message', 'direct_mention'], (bot, message) => {
+        data.sparkedbot.hears(['^example'], ['direct_message', 'direct_mention'], (bot, message) => {
             bot.reply(message, 'Hello.');
         });
 
-        data.sparkedbot.hears(['status', 'current'], ['direct_message', 'direct_mention'], (bot, message) => {
+        data.sparkedbot.hears(['^status', '^current'], ['direct_message', 'direct_mention'], (bot, message) => {
             var attachments = [];
             var attachment = {
                 title: 'Status:',
@@ -124,13 +125,20 @@ serialPort.listAsync().then(ports => ports)
             });
         });
 
-        data.sparkedbot.hears(['refetch', 'reupload', 'upload', 'update'], ['direct_message', 'direct_mention'], (bot, message) => {
+        data.sparkedbot.hears(['^refetch', '^reupload', '^upload', '^update'], ['direct_message', 'direct_mention'], (bot, message) => {
             bot.reply(message, 'Refetching and uploading "' + data.answers.filepath + '"');
             data.forcedUpdate = true;
-            upload(data);
+            upload(data)
+            .then(cliOutput => {
+                bot.reply(message, 'CLI output after uploading: ');
+                bot.reply(message, '```' + cliOutput + '```');
+            })
+            .catch(e => {
+                console.log('Caught an error thingy: ' + e);
+            })
         });
 
-        data.sparkedbot.hears(['baud (.*)'], ['direct_message', 'direct_mention'], (bot, message) => {
+        data.sparkedbot.hears(['^baud (.*)'], ['direct_message', 'direct_mention'], (bot, message) => {
             var baud = message.match[1];
             var baudrates = getQuestions()[1].choices;
 
@@ -143,9 +151,9 @@ serialPort.listAsync().then(ports => ports)
             }
         });
 
-        data.sparkedbot.hears(['list'], ['direct_message', 'direct_mention'], (bot, message) => {
+        data.sparkedbot.hears(['^list'], ['direct_message', 'direct_mention'], (bot, message) => {
             serialPort.listAsync().then(ports => ports)
-                .then(ports => {
+            .then(ports => {
 
                 var attachments = [];
                 var attachment = {
@@ -158,7 +166,7 @@ serialPort.listAsync().then(ports => ports)
                     attachment.fields.push({
                         label: 'Field',
                         value: port.comName,
-                        short: false,
+                        short: false
                     })
                 });
 
@@ -173,7 +181,7 @@ serialPort.listAsync().then(ports => ports)
             })
         });
 
-        data.sparkedbot.hears(['device (.*)', '(.*)port (.*)'], ['direct_message', 'direct_mention'], (bot, message) => {
+        data.sparkedbot.hears(['^port (.*)'], ['direct_message', 'direct_mention'], (bot, message) => {
             var desiredPort = message.match[1];
             var found = false;
             serialPort.listAsync().then(ports => {
@@ -191,8 +199,8 @@ serialPort.listAsync().then(ports => ports)
             })
         });
 
-        data.sparkedbot.hears(['file (.*)'], ['direct_message', 'direct_mention'], (bot, message) => {
-            var filepath = message.match[1];
+        data.sparkedbot.hears(['^file (.*)'], ['direct_message', 'direct_mention'], (bot, message) => {
+            var filepath = message.match[1].slice(1, -1);
             if (filepath.match(/https:\/\/raw\.githubusercontent\.com\/.*\.ino/g)){
                 data.answers.filepath = filepath;
                 bot.reply(message, 'Now watching the file ' + filepath);
@@ -202,7 +210,7 @@ serialPort.listAsync().then(ports => ports)
             }
         });
 
-        data.sparkedbot.hears(['auth (.*)'], ['direct_message', 'direct_mention'], (bot, message) => {
+        data.sparkedbot.hears(['^auth (.*)'], ['direct_message', 'direct_mention'], (bot, message) => {
             if (message.event === 'direct_mention') {
                 bot.reply(message, 'Well, if you\'re fine giving private repo privelage to everyone who can read this...');
             }
@@ -212,7 +220,7 @@ serialPort.listAsync().then(ports => ports)
 
         });
 
-        data.sparkedbot.hears(['print (.*)', 'print\(\"(.*)\"\)'], ['direct_message', 'direct_mention'], (bot, message) => {
+        data.sparkedbot.hears(['^print (.*)', '^print\(\"(.*)\"\)'], ['direct_message', 'direct_mention'], (bot, message) => {
             // using print\(([\'\"])(.*)\1\) leads to an octal literal error in strict mode, and arduino uses double quotes instead of single quotes for printing string literals anyway
             var serialData = message.match[1];
             if (data.serialOpen) {
@@ -224,7 +232,7 @@ serialPort.listAsync().then(ports => ports)
             }
         });
 
-        data.sparkedbot.hears(['start'], ['direct_message', 'direct_mention'], (bot, message) => {
+        data.sparkedbot.hears(['^start'], ['direct_message', 'direct_mention'], (bot, message) => {
             data.talk = true;
             if (data.serialOpen) {
                 bot.reply(message, 'Ok, I\'ll write serial output here');
@@ -240,12 +248,12 @@ serialPort.listAsync().then(ports => ports)
             }
         });
 
-        data.sparkedbot.hears(['stop'], ['direct_message', 'direct_mention'], (bot, message) => {
+        data.sparkedbot.hears(['^stop'], ['direct_message', 'direct_mention'], (bot, message) => {
             data.talk = false;
             bot.reply(message, 'Ok. I\'ll stop writing serial output here.');
         });
 
-        data.sparkedbot.hears(['quit', 'shut down'], ['direct_message', 'direct_mention'], (bot, message) => {
+        data.sparkedbot.hears(['^quit', '^shut down'], ['direct_message', 'direct_mention'], (bot, message) => {
             bot.reply(message, 'If you say so. Quitting the node process...');
             console.log('\n\nThe quit command was executed from slack, quitting...\n\n')
             process.exit(1);
@@ -253,51 +261,64 @@ serialPort.listAsync().then(ports => ports)
     }
     return data;
 })
+.then(data => {
 
-    .then(data => {
-
+})
+.catch(e => {
+    console.log('Error while starting sparked: ' + e);
 })
 
 
 
 function upload(data) {
-    new Promise(resolve => {
-        if (data.forcedUpdate) {
-            data.serialPort = new SerialPort(data.answers.port, {
-                baudrate: data.answers.baud,
-                parser: serialPort.parsers.readline("\n")
-            }, true);
-            data.forcedUpdate = false;
-        }
-        resolve();
-    })
-        .then(() => {
-        return new Promise(resolve => {
+
+    if (data.forcedUpdate) {
+        data.serialPort = new SerialPort(data.answers.port, {
+            baudrate: data.answers.baud,
+            parser: serialPort.parsers.readline("\n")
+        }, true);
+    }
+
+    var fileUploadProcess = new Promise( (resolve, reject) => {
+        if (data.serialOpen) {
             https.get(data.answers.filepath, res => {
                 res.on('data', fileData => {
                     resolve(fileData);
                 });
             });
-        });
+        } else {
+            reject('Serial port is not yet open, cannot upload data');
+        }
     })
-        .then(fileData => {
-        return new Promise(resolve => {
+    .then(fileData => {
+        return new Promise((resolve, reject) => {
             fileData = fileData.toString('utf8');
-            fs.writeFile(__dirname + 'downloadedFile.ino', fileData, function(err) {
-                if(err) {
-                    return console.log(err);
-                }
-
+            fs.writeFileAsync(__dirname + 'downloadedFile.ino', fileData)
+            .done(content => {
                 resolve();
+            }, error => {
+                reject(error);
             });
         });
     })
-        .then(() => {
-        var cmd = 'cat ' + __dirname + 'downloadedFile.ino';
-        exec(cmd, function(error, stdout, stderr) {
-            //console.log(stdout);
+    .then(() => {
+        return new Promise((resolve, reject) => {
+            var cmd = 'cat ' + __dirname + 'downloadedFile.ino';
+            exec(cmd, (error, stdout, stderr) => {
+                if (error) {
+                    reject(error);
+                } else if (stderr) {
+                    reject(stderr);
+                }
+                resolve(stdout);
+            });
         });
     })
+    .catch(e => {
+        console.log('Error while uploading: [' + e + ']');
+    })
+
+    return fileUploadProcess.then().then().then(data => { return data });
 }
 
 
