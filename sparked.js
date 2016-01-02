@@ -58,7 +58,7 @@ serialPort.listAsync()
                         } else if (data.reconnects < 3) {
 
                         }
-                        console.log('Could not connect to slack, retrying (' + data.reconnects + ')');
+                        console.log(`Could not connect to slack, retrying (${data.reconnects})`);
                     }
                 });
             }
@@ -99,19 +99,19 @@ serialPort.listAsync()
 
             attachment.fields.push({
                 label: 'Field',
-                value: 'Current port: ' + data.answers.port,
+                value: `Current port: ${data.answers.port}`,
                 short: false,
             })
 
             attachment.fields.push({
                 label: 'Field',
-                value: 'Current baud rate: ' + data.answers.baud,
+                value: `Current baud rate: ${data.answers.baud}`,
                 short: false,
             })
 
             attachment.fields.push({
                 label: 'Field',
-                value: 'File being monitored: ' + data.answers.filepath,
+                value: `File being monitored: ${data.answers.filepath}`,
                 short: false,
             })
 
@@ -126,15 +126,12 @@ serialPort.listAsync()
         });
 
         data.sparkedbot.hears(['^refetch', '^reupload', '^upload', '^update'], ['direct_message', 'direct_mention'], (bot, message) => {
-            bot.reply(message, 'Refetching and uploading "' + data.answers.filepath + '"');
+            bot.reply(message, `Refetching and uploading "${data.answers.filepath}"`);
             data.forcedUpdate = true;
             upload(data)
             .then(cliOutput => {
                 bot.reply(message, 'CLI output after uploading: ');
                 bot.reply(message, '```' + cliOutput + '```');
-            })
-            .catch(e => {
-                console.log('Caught an error thingy: ' + e);
             })
         });
 
@@ -144,9 +141,9 @@ serialPort.listAsync()
 
             if (baudrates.indexOf(baud) != -1) {
                 data.answers.baud = baud;
-                bot.reply(message, 'Setting baud rate to ' + baud + '. Use "update" to finalize changes to settings');
+                bot.reply(message, `Setting baud rate to ${baud}. Use "update" to finalize changes to settings`);
             } else {
-                bot.reply(message, baud + ' is an invalid baud rate, the following baud rates are supported:');
+                bot.reply(message, `${baud} is an invalid baud rate, the following baud rates are supported:`);
                 bot.reply(message, baudrates.join(', '));
             }
         });
@@ -191,10 +188,10 @@ serialPort.listAsync()
                     }
                 });
                 if (found === false) {
-                    bot.reply(message, 'Sorry, but no serial port exists with the name "' + desiredPort + '"');
+                    bot.reply(message, `Sorry, but no serial port exists with the name "${desiredPort}"`);
                 } else {
                     data.answers.port = desiredPort;
-                    bot.reply(message, 'The port "' + desiredPort + '" is now the desired port. Use "update" to finalize changes to settings');
+                    bot.reply(message, `The port "${desiredPort}" is now the desired port. Use "update" to finalize changes to settings`);
                 }
             })
         });
@@ -203,10 +200,10 @@ serialPort.listAsync()
             var filepath = message.match[1].slice(1, -1);
             if (filepath.match(/https:\/\/raw\.githubusercontent\.com\/.*\.ino/g)){
                 data.answers.filepath = filepath;
-                bot.reply(message, 'Now watching the file ' + filepath);
+                bot.reply(message, `Now watching the file ${filepath}`);
                 bot.reply(message, 'Make sure to add or change the github auth token by dm\'ing me with reauth [token] if the file is in a private repo that requires new permissions')
             } else {
-                bot.reply(message, 'Sorry, but the url "' + filepath + '" does not seem like a valid raw github-hosted .ino file');
+                bot.reply(message, `Sorry, but the url "${filepath}" does not seem like a valid raw github-hosted .ino file`);
             }
         });
 
@@ -216,7 +213,7 @@ serialPort.listAsync()
             }
             var githubToken = message.match[1];
             data.answers.githubToken = githubToken;
-            bot.reply(message, 'Setting GitHub auth token to "' + githubToken + '"');
+            bot.reply(message, `Setting GitHub auth token to "${githubToken}"`);
 
         });
 
@@ -224,7 +221,7 @@ serialPort.listAsync()
             // using print\(([\'\"])(.*)\1\) leads to an octal literal error in strict mode, and arduino uses double quotes instead of single quotes for printing string literals anyway
             var serialData = message.match[1];
             if (data.serialOpen) {
-                bot.reply(message, 'Sent the following over serial: *' + serialData + '*');
+                bot.reply(message, `Sent the following over serial: *${serialData}*`);
                 data.serialPort.write(serialData);
             } else {
                 bot.reply(message, 'Sorry, the serial port has not opened yet. Data cannot be transferred until it is open');
@@ -238,7 +235,7 @@ serialPort.listAsync()
                 bot.reply(message, 'Ok, I\'ll write serial output here');
                 data.serialPort.on('data', serialData => {
                     if (data.talk) {
-                        bot.reply(message, '*Serial Output:* ' + serialData);
+                        bot.reply(message, `*Serial Output:* ${serialData}`);
                         console.log(serialData);
                     }
                 });
@@ -265,7 +262,7 @@ serialPort.listAsync()
 
 })
 .catch(e => {
-    console.log('Error while starting sparked: ' + e);
+    console.log(`Error while starting sparked: ${e}`);
 })
 
 
@@ -293,7 +290,7 @@ function upload(data) {
     .then(fileData => {
         return new Promise((resolve, reject) => {
             fileData = fileData.toString('utf8');
-            fs.writeFileAsync(__dirname + 'downloadedFile.ino', fileData)
+            fs.writeFileAsync(`${__dirname}downloadedFile.ino`, fileData)
             .done(content => {
                 resolve();
             }, error => {
@@ -303,7 +300,7 @@ function upload(data) {
     })
     .then(() => {
         return new Promise((resolve, reject) => {
-            var cmd = 'cat ' + __dirname + 'downloadedFile.ino';
+            var cmd = `cat ${__dirname}downloadedFile.ino`;
             exec(cmd, (error, stdout, stderr) => {
                 if (error) {
                     reject(error);
@@ -315,7 +312,7 @@ function upload(data) {
         });
     })
     .catch(e => {
-        console.log('Error while uploading: [' + e + ']');
+        console.log(`Error while uploading: [${e}]`);
     })
 
     return fileUploadProcess.then().then().then(data => { return data });
