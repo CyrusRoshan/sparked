@@ -32,7 +32,10 @@ serialPort.listAsync()
 .then(answers => {
     var data = {
         answers: answers,
-        forcedUpdate: false
+        forcedUpdate: false,
+        serialOpen: true,
+        sparkedbot: false,
+        reconnects: 0
     };
 
 
@@ -48,23 +51,26 @@ serialPort.listAsync()
                 log: true
             });
 
-            data.connect = function() {
+            data.connect = () => {
                 data.sparkedbot.spawn({
                     token: data.answers.slackToken,
                 }).startRTM(err => {
                     if (err) {
-                        if (!data.reconnects) {
-                            data.reconnects = 1;
-                        } else if (data.reconnects < 3) {
-
+                        if (data.reconnects < 3) {
+                            console.log(`Could not connect to slack, retrying (${data.reconnects})`);
+                            data.connect();
+                        } else {
+                            console.log('Could not reconnect, exiting...');
+                            process.exit(1);
                         }
-                        console.log(`Could not connect to slack, retrying (${data.reconnects})`);
+                    } else {
+                        data.reconnects = 0;
+                        console.log('Connected to slack!')
                     }
                 });
             }
 
             data.connect();
-
             resolve(data);
         });
     }
@@ -133,6 +139,9 @@ serialPort.listAsync()
                 bot.reply(message, 'CLI output after uploading: ');
                 bot.reply(message, '```' + cliOutput + '```');
             })
+            .catch(e => {
+                console.log(`Error while uploading: [${e}]`);
+            })
         });
 
         data.sparkedbot.hears(['^baud (.*)'], ['direct_message', 'direct_mention'], (bot, message) => {
@@ -200,10 +209,10 @@ serialPort.listAsync()
             var filepath = message.match[1].slice(1, -1);
             if (filepath.match(/https:\/\/raw\.githubusercontent\.com\/.*\.ino/g)){
                 data.answers.filepath = filepath;
-                bot.reply(message, `Now watching the file ${filepath}`);
+                bot.reply(message, `Now watching the file *${filepath}*`);
                 bot.reply(message, 'Make sure to add or change the github auth token by dm\'ing me with reauth [token] if the file is in a private repo that requires new permissions')
             } else {
-                bot.reply(message, `Sorry, but the url "${filepath}" does not seem like a valid raw github-hosted .ino file`);
+                bot.reply(message, `Sorry, but the url *${filepath}* does not seem like a valid raw github-hosted .ino file`);
             }
         });
 
@@ -315,7 +324,8 @@ function upload(data) {
         console.log(`Error while uploading: [${e}]`);
     })
 
-    return fileUploadProcess.then().then().then(data => { return data });
+    //use this if you want to return the data itself: return fileUploadProcess.then().then().then(data => { return data });
+    return fileUploadProcess.then().then();
 }
 
 
