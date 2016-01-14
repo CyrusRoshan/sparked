@@ -35,7 +35,8 @@ serialPort.listAsync()
         forcedUpdate: false,
         serialOpen: true,
         sparkedbot: false,
-        reconnects: 0
+        reconnects: 0,
+        fileHash: 0
     };
 
 
@@ -210,20 +211,9 @@ serialPort.listAsync()
             if (filepath.match(/https:\/\/raw\.githubusercontent\.com\/.*\.ino/g)){
                 data.answers.filepath = filepath;
                 bot.reply(message, `Now watching the file *${filepath}*`);
-                bot.reply(message, 'Make sure to add or change the github auth token by dm\'ing me with reauth [token] if the file is in a private repo that requires new permissions')
             } else {
                 bot.reply(message, `Sorry, but the url *${filepath}* does not seem like a valid raw github-hosted .ino file`);
             }
-        });
-
-        data.sparkedbot.hears(['^auth (.*)'], ['direct_message', 'direct_mention'], (bot, message) => {
-            if (message.event === 'direct_mention') {
-                bot.reply(message, 'Well, if you\'re fine giving private repo privelage to everyone who can read this...');
-            }
-            var githubToken = message.match[1];
-            data.answers.githubToken = githubToken;
-            bot.reply(message, `Setting GitHub auth token to "${githubToken}"`);
-
         });
 
         data.sparkedbot.hears(['^print (.*)', '^print\(\"(.*)\"\)'], ['direct_message', 'direct_mention'], (bot, message) => {
@@ -274,6 +264,17 @@ serialPort.listAsync()
     console.log(`Error while starting sparked: ${e}`);
 })
 
+// thanks to http://stackoverflow.com/a/7616484/4455222
+String.prototype.hashCode = function() {
+    var hash = 0, i, chr, len;
+    if (this.length === 0) return hash;
+    for (i = 0, len = this.length; i < len; i++) {
+        chr = this.charCodeAt(i);
+        hash = ((hash << 5) - hash) + chr;
+        hash |= 0; // Convert to 32bit integer
+    }
+    return hash;
+};
 
 
 function upload(data) {
@@ -285,27 +286,14 @@ function upload(data) {
         }, true);
     }
 
-    var fileUploadProcess = new Promise( (resolve, reject) => {
-        if (data.serialOpen) {
-            https.get(data.answers.filepath, res => {
-                res.on('data', fileData => {
-                    resolve(fileData);
-                });
-            });
-        } else {
-            reject('Serial port is not yet open, cannot upload data');
+    fetch(url)
+    .then(function(res) {
+        hashCode = res.text().hashCode;
+        if (hashCode != data.fileHash || data.forcedUpdate) {
+            data.fileHash = hashCode;
+            return fs.writeFileAsync(`${__dirname}downloadedFile.ino`, res.text())
         }
-    })
-    .then(fileData => {
-        return new Promise((resolve, reject) => {
-            fileData = fileData.toString('utf8');
-            fs.writeFileAsync(`${__dirname}downloadedFile.ino`, fileData)
-            .done(content => {
-                resolve();
-            }, error => {
-                reject(error);
-            });
-        });
+        throw 'File has not changed'
     })
     .then(() => {
         return new Promise((resolve, reject) => {
@@ -321,7 +309,9 @@ function upload(data) {
         });
     })
     .catch(e => {
-        console.log(`Error while uploading: [${e}]`);
+        if (e) {
+            console.log(`Error while uploading: [${e}]`);
+        }
     })
 
     //use this if you want to return the data itself: return fileUploadProcess.then().then().then(data => { return data });
@@ -375,19 +365,6 @@ function getQuestions(ports) {
                     return true;
                 } else {
                     return 'Please enter a valid file path, e.g. https://raw.githubusercontent.com/USERNAME/REPO/BRANCH/FOLDER/FILE.ino';
-                }
-            }
-        },
-        {
-            type: 'input',
-            name: 'githubToken',
-            message: 'If this is a private repo, please enter an auth code to view it:\n',
-            validate: value => {
-                return true;
-                if (value.length === 40 || value.length === 0) {
-                    return true;
-                } else {
-                    return 'Please enter a valid auth code';
                 }
             }
         },
