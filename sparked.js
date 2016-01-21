@@ -6,19 +6,16 @@ var inquirer = require('inquirer');
 var Botkit = require('botkit');
 var serialPort = require('serialport');
 var SerialPort = serialPort.SerialPort;
-var http = require('http');
-var https = require('https');
 var fs = require('fs');
 var exec = require('child_process').exec;
+var co = require('co');
+var fetch = require('node-fetch');
 
 Promise.promisifyAll(inquirer);
 Promise.promisifyAll(Botkit);
 Promise.promisifyAll(serialPort);
 Promise.promisifyAll(SerialPort);
-Promise.promisifyAll(http);
-Promise.promisifyAll(https);
 Promise.promisifyAll(fs);
-Promise.promisifyAll(exec);
 
 
 serialPort.listAsync()
@@ -35,7 +32,7 @@ serialPort.listAsync()
         forcedUpdate: false,
         serialOpen: true,
         sparkedbot: false,
-        reconnects: 0,
+        reconnects: 1,
         fileHash: 0
     };
 
@@ -49,7 +46,7 @@ serialPort.listAsync()
 
             data.sparkedbot = Botkit.slackbot({
                 debug: false,
-                log: true
+                log: false
             });
 
             data.connect = () => {
@@ -57,15 +54,15 @@ serialPort.listAsync()
                     token: data.answers.slackToken,
                 }).startRTM(err => {
                     if (err) {
-                        if (data.reconnects < 3) {
-                            console.log(`Could not connect to slack, retrying (${data.reconnects})`);
+                        if (data.reconnects++ < 3) {
+                            console.log(`Could not connect to slack, retrying (${data.reconnects} total tries)`);
                             data.connect();
                         } else {
-                            console.log('Could not reconnect, exiting...');
+                            console.log(`Could not reconnect after ${data.reconnects} tries, exiting...`);
                             process.exit(1);
                         }
                     } else {
-                        data.reconnects = 0;
+                        data.reconnects = 1;
                         console.log('Connected to slack!')
                     }
                 });
@@ -75,13 +72,19 @@ serialPort.listAsync()
             resolve(data);
         });
     }
-    data.serialPort = new SerialPort(data.answers.port, {
-        baudrate: 9600,//data.answers.baud,
-        parser: serialPort.parsers.readline('\n')
-    }, true);
-    data.serialPort.on('open', () => {
-        data.serialOpen = true;
-    });
+
+    try {
+        data.serialPort = new SerialPort(data.answers.port, {
+            baudrate: 9600,//data.answers.baud,
+            parser: serialPort.parsers.readline('\n')
+        }, true);
+        data.serialPort.on('open', () => {
+            data.serialOpen = true;
+        });
+    } catch (err) {
+        console.log(`Error while opening port: ${err}`);
+        process.exit(1);
+    }
 
     return data;
 })
@@ -136,13 +139,12 @@ serialPort.listAsync()
             bot.reply(message, `Refetching and uploading "${data.answers.filepath}"`);
             data.forcedUpdate = true;
             upload(data)
-            .then(cliOutput => {
-                bot.reply(message, 'CLI output after uploading: ');
-                bot.reply(message, '```' + cliOutput + '```');
+            .then(result => {
+                console.log(result);
             })
-            .catch(e => {
-                console.log(`Error while uploading: [${e}]`);
-            })
+            .catch(err => {
+                console.log(err)
+            });
         });
 
         data.sparkedbot.hears(['^baud (.*)'], ['direct_message', 'direct_mention'], (bot, message) => {
@@ -255,10 +257,6 @@ serialPort.listAsync()
             process.exit(1);
         });
     }
-    return data;
-})
-.then(data => {
-
 })
 .catch(e => {
     console.log(`Error while starting sparked: ${e}`);
@@ -279,43 +277,45 @@ String.prototype.hashCode = function() {
 
 function upload(data) {
 
-    if (data.forcedUpdate) {
-        data.serialPort = new SerialPort(data.answers.port, {
-            baudrate: data.answers.baud,
-            parser: serialPort.parsers.readline("\n")
-        }, true);
-    }
+    return co(function *(){
+        try {
+            if (data.forcedUpdate) {
+                data.serialPort = new SerialPort(data.answers.port, {
+                    baudrate: data.answers.baud,
+                    parser: serialPort.parsers.readline("\n")
+                }, true);
+            }
 
-    fetch(url)
-    .then(function(res) {
-        hashCode = res.text().hashCode;
-        if (hashCode != data.fileHash || data.forcedUpdate) {
-            data.fileHash = hashCode;
-            return fs.writeFileAsync(`${__dirname}downloadedFile.ino`, res.text())
+            var download = fetch(data.answers.filepath)
+            .then(function(res) {
+                hashCode = res.text().hashCode;
+                if (hashCode != data.fileHash || data.forcedUpdate) {
+                    data.fileHash = hashCode;
+                    return fs.writeFileAsync(`${__dirname}downloadedFile.ino`, res.text())
+                }
+                throw 'File has not changed'
+            })
+        } catch (err) {
+            return `Error while downloading from GitHub: [${err}]`;
         }
-        throw 'File has not changed'
-    })
-    .then(() => {
-        return new Promise((resolve, reject) => {
+
+        try {
+            yield download.then();
             var cmd = `cat ${__dirname}downloadedFile.ino`;
             exec(cmd, (error, stdout, stderr) => {
                 if (error) {
-                    reject(error);
+                    throw error;
                 } else if (stderr) {
-                    reject(stderr);
+                    throw stderr;
                 }
+                console.log('ASDFASDF')
+                console.log('POS1: ' + stdout)
                 resolve(stdout);
             });
-        });
-    })
-    .catch(e => {
-        if (e) {
-            console.log(`Error while uploading: [${e}]`);
+        } catch (err) {
+            return `Error while uploading to Arduino: [${err}]`;
         }
-    })
-
-    //use this if you want to return the data itself: return fileUploadProcess.then().then().then(data => { return data });
-    return fileUploadProcess.then().then();
+    });
 }
 
 
